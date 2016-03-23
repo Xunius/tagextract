@@ -42,7 +42,8 @@ class TagFinder(object):
     def defSyntax(self):
 
         self._tab_re=re.compile('^(\\s+)(\\S.*)', re.X | re.L | re.M)
-        self._tag_re=re.compile('@(?=\\S)(.+?)\\b', re.L | re.X | re.M)
+        #self._tag_re=re.compile('@(?=\\S)(.+?)\\b', re.L | re.X | re.M)
+        self._tag_re=re.compile('(?<=@)(.+?)[;,@\\n]', re.L | re.X | re.M)
         self._ws_only_line_re = re.compile(r"^[ \t]+$", re.M)
 
         if self.syntax=='markdown':
@@ -258,7 +259,8 @@ class TagFinder(object):
                 result_idx.extend(linesbelow)
 
         #-----------------Get lines by idx-----------------
-        result_idx=set(result_idx)
+        result_idx=list(set(result_idx))
+        result_idx.sort()
         result_lines=[lines[ii] for ii in result_idx]
         result_lines=u''.join(result_lines)
 
