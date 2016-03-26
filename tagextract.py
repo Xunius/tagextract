@@ -27,6 +27,8 @@ Update time: 2016-03-23 17:17:07.
 import sys, os
 import re
 import argparse
+from lib import tools
+from lib import textparse
 
 
 
@@ -35,87 +37,9 @@ class TagFinder(object):
 
     def __init__(self, syntax='markdown'):
         self.syntax=syntax
-        self.defSyntax()
-        self.tab_width=4
+        self.tp=textparse.TextParser(syntax)
 
 
-    def defSyntax(self):
-
-        self._tab_re=re.compile('^(\\s+)(\\S.*)', re.X | re.L | re.M)
-        #self._tag_re=re.compile('@(?=\\S)(.+?)\\b', re.L | re.X | re.M)
-        self._tag_re=re.compile('(?<=@)(.+?)[;,@\\n]', re.L | re.X | re.M)
-        self._ws_only_line_re = re.compile(r"^[ \t]+$", re.M)
-
-        if self.syntax=='markdown':
-
-            self._img_re=re.compile('^(.*)!\\[(.+?)\\]\\((.+?)\\)', re.M | re.L)
-            _h_re_base = r'''
-            (^(.+)[ \t]*\n(=+|-+)[ \t]*\n+)
-            |
-            (^(\#{1,6})  # \1 = string of #'s
-            [ \t]%s
-            (.+?)       # \2 = Header text
-            [ \t]*
-            (?<!\\)     # ensure not an escaped trailing '#'
-            \#*         # optional closing #'s (not counted)
-            \n+
-            )
-            '''
-            self._h_re = re.compile(_h_re_base % '*', re.X | re.M)
-
-        elif self.syntax=='zim':
-
-            self._img_re=re.compile('^(.*)\\{\\{(.+?)\\}\\}(.*)$', re.M | re.L)
-            _h_re_base = r'''
-                ^(\={1,6})  # \1 = string of ='s
-                [ \t]%s
-                (.+?)       # \2 = Header text
-                [ \t]*
-                \1
-                \n+
-                '''
-            self._h_re = re.compile(_h_re_base % '*', re.X | re.M)
-
-        return
-
-
-
-    def space2tab(self,text):
-
-        #roundint=lambda x: int(x+1) if x-int(x)>=0.5 else int(x)
-        m=self._tab_re.match(text)
-        if m:
-            spc=m.group(1)
-            spclen=spc.count(' ')+self.tab_width*spc.count('\t')
-            #num=roundint(spclen/4.)
-            #return '%s%s' %('\t'*num, m.group(2)), num
-            return '%s%s' %(' '*spclen, m.group(2)), spclen/float(self.tab_width)
-        else:
-            return text, 0
-
-
-    def isHeader(self,text):
-        if self._h_re.match(text):
-            return True
-        else:
-            return False
-
-
-    def isEmpty(self,text):
-        if len(text)==0 or self._ws_only_line_re.match(text)\
-                or text=='\n':
-            return True
-        else:
-            return False
-
-
-    def isImg(self,text):
-        m=self._img_re.match(text)
-        if m:
-            return True
-        else:
-            return False
-        
 
     def searchUp(self,lines,tag,lineidx,lvl):
         result_idx=[lineidx]
@@ -123,15 +47,15 @@ class TagFinder(object):
 
         for ii in range(lineidx-1,-1,-1):
             lineii=lines[ii]
-            tablvl=self.space2tab(lineii)[1]
-            isheader=self.isHeader(lineii)
+            tablvl=self.tp.space2tab(lineii)[1]
+            isheader=self.tp.isHeader(lineii)
 
             #---------Include empty lines and move on---------
-            if self.isEmpty(lineii):
+            if self.tp.isEmpty(lineii):
                 result_idx.append(ii)
                 continue
             #---------Include img def lines and move on---------
-            if self.isImg(lineii):
+            if self.tp.isImg(lineii):
                 result_idx.append(ii)
                 continue
             #--------Include and stop at any heading-----------
@@ -140,13 +64,13 @@ class TagFinder(object):
                 return result_idx
 
             #------------Check indent level change------------
-            if sameblock and abs(tablvl-lvl)>1:
+            if sameblock and abs(tablvl-lvl)>=1:
                 sameblock=False
             #-----------Stop at a lower indent level-----------
             if tablvl-lvl>=1 and not sameblock:
                 return result_idx
 
-            tagsatline=self._tag_re.findall(lineii)
+            tagsatline=self.tp.findTags(lineii)
 
             #------Stil in the same tag def block, include and move on-----------
             if len(tagsatline)>0 and sameblock:
@@ -174,13 +98,13 @@ class TagFinder(object):
 
         for ii in range(lineidx+1,len(lines)):
             lineii=lines[ii]
-            tablvl=self.space2tab(lineii)[1]
-            isheader=self.isHeader(lineii)
+            tablvl=self.tp.space2tab(lineii)[1]
+            isheader=self.tp.isHeader(lineii)
 
-            if self.isEmpty(lineii):
+            if self.tp.isEmpty(lineii):
                 result_idx.append(ii)
                 continue
-            if self.isImg(lineii):
+            if self.tp.isImg(lineii):
                 result_idx.append(ii)
                 continue
             if isheader:
@@ -193,7 +117,7 @@ class TagFinder(object):
             if lvl-tablvl>0:
                 return result_idx
 
-            tagsatline=self._tag_re.findall(lineii)
+            tagsatline=self.tp.findTags(lineii)
 
             #------Stil in the same tag def block, move on-----------
             if len(tagsatline)>0 and sameblock:
@@ -213,8 +137,8 @@ class TagFinder(object):
         #----------------Loop through lines----------------
         tagdict={}
         for ll, tt in enumerate(lines):
-            tt, tabnum=self.space2tab(tt)
-            tagll=self._tag_re.findall(tt)
+            tt, tabnum=self.tp.space2tab(tt)
+            tagll=self.tp.findTags(tt)
 
             if len(tagll)>0:
                 for tagii in tagll:
@@ -262,57 +186,13 @@ class TagFinder(object):
         result_idx=list(set(result_idx))
         result_idx.sort()
         result_lines=[lines[ii] for ii in result_idx]
+        result_lines=self.tp.leftJust(result_lines)
         result_lines=u''.join(result_lines)
 
         return result_lines
 
 
 
-
-
-#-------------------Read in text file and store data-------------------
-def readFile(abpath_in,verbose=True):
-    '''Read in text file and store data
-
-    <abpath_in>: str, absolute path to input txt.
-    '''
-
-    if not os.path.exists(abpath_in):
-        raise Exception("\n# <tagextract>: Input file not found.")
-
-    if verbose:
-        print('\n# <tagextract>: Open input file:')
-        print(abpath_in)
-        print('\n# <tagextract>: Reading lines...')
-        
-    lines=[]
-
-    with open(abpath_in, 'r') as fin:
-        for line in fin:
-            lines.append(line)
-    lines=u''.join(lines)
-
-    if verbose:
-        print('# <tagextract>: Got all data.')
-
-    return lines
-
-
-
-#---------------Save result to file---------------
-def saveFile(abpath_out,text,verbose=True):
-
-    if os.path.isfile(abpath_out):
-        os.remove(abpath_out)
-
-    if verbose:
-        print('\n# <tagextract>: Saving result to:')
-        print(abpath_out)
-
-    with open(abpath_out, mode='a') as fout:
-        fout.write(text)
-
-    return
 
 
 
@@ -323,7 +203,7 @@ def main(filein,fileout,tag,syntax='markdown',verbose=True):
     filein
     '''
 
-    text=readFile(filein,verbose)
+    text=tools.readFile(filein,verbose)
     if verbose:
         print('# <tagextract>: Extracting tagged lines...')
     tagfinder=TagFinder(syntax)
@@ -334,7 +214,7 @@ def main(filein,fileout,tag,syntax='markdown',verbose=True):
     header='%s %s %s' %(headersym, header, headersym)
     newtext=header+'\n\n'+newtext
 
-    saveFile(fileout,newtext,verbose)
+    tools.saveFile(fileout,newtext,verbose)
 
     return
 
