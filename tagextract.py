@@ -160,7 +160,7 @@ class TagFinder(object):
         text, tag, synatx 
         '''
         #--------------------Preprocess--------------------
-        text=text.encode('utf8')
+        #text=text.encode('utf8')
         text = re.sub("\r\n|\r", "\n", text)
         lines=text.split('\n')
         lines=[ii+'\n' for ii in lines]
