@@ -4,7 +4,7 @@ import re
 class TextParser(object):
 
     _tab_re=re.compile('^(\\s+)(\\S.*)', re.X | re.L | re.M | re.DOTALL)
-    _tag_re=re.compile('(?<=@)(.+?)(?:;|,|@|\\n|\\t|\\Z)', re.L | re.X | re.M)
+    _tag_re=re.compile('(?<=@)(.+?)(?:\\s|;|,|@|\\n|\\t|\\Z)', re.L | re.X | re.M)
     _ws_only_line_re = re.compile(r"^[ \t]+$", re.M)
     _empty_line_re = re.compile(r"^([ \t]+$)?", re.M)
     _citekey_re=re.compile('\\s((@?)([a-zA-Z]+)(\\d{4}\\w?))\\b', re.LOCALE | re.UNICODE)
