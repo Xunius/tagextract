@@ -168,6 +168,10 @@ class TagFinder(object):
         #------------------Find all tags------------------
         tagdict=self.findAllTags(lines)
 
+        #-------------Preprend @ if not given-------------
+        if len(self.tp.findTags(tag))==0:
+            tag='@%s' %tag
+
         #-------------Extract line idx by tag------------------
         result_idx=[]
 
