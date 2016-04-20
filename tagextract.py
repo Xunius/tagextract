@@ -174,6 +174,12 @@ class TagFinder(object):
 
         #-------------Extract line idx by tag------------------
         result_idx=[]
+        if tag not in tagdict:
+            print('# <tagextract>: Your given tag "%s" is not found in input file.' %tag)
+            print('# <tagextract>: Tags found from file:')
+            for tt in tagdict.keys():
+                print (tt)
+            return
 
         for ii in tagdict[tag]:
             lineidx,lvl=ii
